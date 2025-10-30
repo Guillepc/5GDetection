@@ -9,7 +9,7 @@ function [waveformsAll, resourceGrids, ssbTimes, powerVec, snrVec, cellIDVec] = 
   
   band = "n78";
   GSCN = 8003;
-  rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN);
+  rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN); % 
   scs = "30kHz";
   nrbSSB = 20;
   scsNumeric = double(extract(scs, digitsPattern));

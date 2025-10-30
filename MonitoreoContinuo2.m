@@ -10,7 +10,7 @@ function [waveformsAll, resourceGrids, ssbTimes, powerVec, snrVec, cellIDVec] = 
     % Info de bandas de frecuencia : 
     %fr1BandInfo = hSynchronizationRasterInfo.FR1DLOperatingBand ; 
     band = "n78"; % Banda entre 3300-3800 MHz
-    GSCN = 8003; % Índice que referencia una frecuencia particular dentro del rango 5G NR para esa banda
+    GSCN = 7929; % Índice que referencia una frecuencia particular dentro del rango 5G NR para esa banda
     rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN); % Frecuencia central del SDR usando el GSCN 
     scs = "30kHz"; % Espaciado de subportadora
     nrbSSB = 20; % Define el número de resource blocks (RBs) ocupados en la SSB 
