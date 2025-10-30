@@ -1,48 +1,62 @@
 function [waveformsAll, resourceGrids, ssbTimes, powerVec, snrVec, cellIDVec] = MonitoreoContinuo2
-    clear; clc;
-    % --- Configuración SDR, banda y parámetros ---
-    radioOptions = hSDRBase.getDeviceNameOptions;
-    rx = hSDRReceiver(radioOptions{10}); % o B210 si tu SDR tiene ese nombre en radioOptions
-    antennaOptions = getAntennaOptions(rx);
-    rx.ChannelMapping = antennaOptions(1);
-    rx.Gain = 50;
-    band = "n78";
-    GSCN = 8003;
-    rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN);
-    scs = "30kHz";
-    nrbSSB = 20;
-    scsNumeric = double(extract(scs, digitsPattern));
-    ofdmInfo = nrOFDMInfo(nrbSSB, scsNumeric);
-    rx.SampleRate = ofdmInfo.SampleRate;
-    % --- Parámetros de captura ---
-    monitorTime = 1; % segundos
-    interval = 0.1;  % segundos
-    framesPerCapture = 2;
-    captureDuration = seconds((framesPerCapture+1)*10e-3);
-    numCaptures = floor(monitorTime/interval);
-    % --- Captura secuencial ---
-    resourceGrids = cell(numCaptures,1);
-    ssbTimes = zeros(numCaptures,1);
-    powerVec = zeros(numCaptures,1);
-    snrVec = zeros(numCaptures,1);
-    cellIDVec = zeros(numCaptures,1);
-    ssbRects = cell(numCaptures,1);
-    ssbTexts = cell(numCaptures,1);
-    waveformsAll = cell(numCaptures,1); % Aquí guardamos todas las formas de onda
+  clear; clc; 
+
+  %  Configuración SDR, banda y parámetros 
+    radioOptions = hSDRBase.getDeviceNameOptions; % Obtiene las opciones de dispositivos SDR disponibles en el sistema
+    rx = hSDRReceiver(radioOptions{10}); % Crea un objeto receptor SDR usando una de las opciones disponibles, en este caso la opción 10 es B210
+    antennaOptions = getAntennaOptions(rx); % Obtiene las opciones de antena para el dispositivo SDR seleccionado
+    rx.ChannelMapping = antennaOptions(1); % Establece la antena seleccionada
+    rx.Gain = 50; % Ajusta la ganancia del receptor SDR
+    % Info de bandas de frecuencia : 
+    %fr1BandInfo = hSynchronizationRasterInfo.FR1DLOperatingBand ; 
+    band = "n78"; % Banda entre 3300-3800 MHz
+    GSCN = 8003; % Índice que referencia una frecuencia particular dentro del rango 5G NR para esa banda
+    rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN); % Frecuencia central del SDR usando el GSCN 
+    scs = "30kHz"; % Espaciado de subportadora
+    nrbSSB = 20; % Define el número de resource blocks (RBs) ocupados en la SSB 
+    scsNumeric = double(extract(scs, digitsPattern)); % % Extrae el valor numérico del espaciado de subportadora
+    ofdmInfo = nrOFDMInfo(nrbSSB, scsNumeric); % Calcula información OFDM (incluyendo tasa de muestreo, duración de símbolo, etc)
+    rx.SampleRate = ofdmInfo.SampleRate; % Configura la tasa de muestreo del SDR para que coincida con la requerida por OFDM
+   
+    %% Parámetros de captura
+
+    monitorTime = 1; % Tiempo en el que se va a capturar señales
+    interval = 0.1;  % Intervalo entre capturas 
+    framesPerCapture = 2; % Número de frames por captura. Cada frame corresponde a una duración en tiempo estándar de un frame 5G NR (generalmente 10 ms por frame).
+    captureDuration = seconds((framesPerCapture+1)*10e-3); % Tiempo total de la duración de cada captura calculado en segundos.Se multiplica framesPerCapture + 1 para asegurarse de que queda un poco más tiempo para capturar toda la ráfaga.
+    numCaptures = floor(monitorTime/interval); % Número de capturas
+
+    %% Captura secuencial
+
+    resourceGrids = cell(numCaptures,1); % Array para almacenar el resource grid
+    ssbTimes = zeros(numCaptures,1); % Vector para guardar el tiempo (en segundos, desde el inicio)
+    powerVec = zeros(numCaptures,1); % Vector para almacenar la potencia media (en dB) de cada ráfaga
+    snrVec = zeros(numCaptures,1); % Vector para almacenar la estimación de SNR (en dB) de cada ráfaga
+    cellIDVec = zeros(numCaptures,1); % Vector para almacenar los identificadores de celda estimados (cellID) para cada ráfaga 
+    ssbRects = cell(numCaptures,1); % Celdas para guardar coordenadas (rectángulos) que indican la posición del burst SSB detectado en cada resource grid
+    ssbTexts = cell(numCaptures,1); % Celdas para guardar el texto descriptivo (ej. "Strongest SSB: N")
+    waveformsAll = cell(numCaptures,1); % Cell array para guardar todas las waveforms
+
+    %% Sección 4: Bucle de captura y procesamiento
+
     fprintf('Capturando %d ráfagas...\n', numCaptures);
-    tic;
+    tic; % Inicia un contador de tiempo para medir cuánto tarda la captura completa
+
+    % Loop principal sobre el número de capturas
     for k = 1:numCaptures
-        waveform = capture(rx, captureDuration);
-        waveformsAll{k} = waveform; % Guardar la forma de onda
-        ssbTimes(k) = toc;
-        % --- Detección SSB usando findSSB (como en el ejemplo) ---
-        [detectedSSB, gridSSB, burstRect, burstText, ncellid] = findSSB(waveform, rx.CenterFrequency, scs, rx.SampleRate);
-        powerVec(k) = 10*log10(mean(abs(waveform).^2));
-        snrVec(k) = estimateSNR(waveform);
-        cellIDVec(k) = ncellid;
-        resourceGrids{k} = gridSSB;
-        ssbRects{k} = burstRect;
-        ssbTexts{k} = burstText;
+        waveform = capture(rx, captureDuration); % Captura la señal del SDR
+        waveformsAll{k} = waveform; % Guardar la forma de onda en el cell array
+        ssbTimes(k) = toc;  % Tiempo transcurrido desde que empezó el ciclo
+
+        % --- Detección SSB usando findSSB ---
+
+        [detectedSSB, gridSSB, burstRect, burstText, ncellid] = findSSB(waveform, rx.CenterFrequency, scs, rx.SampleRate); % Detecta SSB más fuerte y obtiene el resource grid
+        powerVec(k) = 10*log10(mean(abs(waveform).^2));  % Calcula y almacena la potencia media en dB
+        snrVec(k) = estimateSNR(waveform); % Estima el SNR
+        cellIDVec(k) = ncellid; % Guarda el ID de celda estimado
+        resourceGrids{k} = gridSSB;  % Guarda el resource grid en la celda
+        ssbRects{k} = burstRect; % Guarda las coordenadas del burst detectado
+        ssbTexts{k} = burstText; % Guarda el texto en la visualización
         fprintf('[%.2fs] Potencia=%.1f dB | SNR=%.1f dB | cellID=%d\n', ssbTimes(k), powerVec(k), snrVec(k), ncellid);
         % Mostrar figura individual estilo ejemplo
               % Mostrar figura individual estilo ejemplo (comentado)
@@ -57,13 +71,24 @@ function [waveformsAll, resourceGrids, ssbTimes, powerVec, snrVec, cellIDVec] = 
         %     hold off;
         % end
         % drawnow;
-        pause(interval);
+        pause(interval); % Pausa para mantener el intervalo de captura
     end
-    release(rx);
-    % --- Visualizador interactivo temporal (slider) con overlay ---
+    release(rx); % Libera el objeto del SDR para que no quede bloqueado por futuras ejecuciones
+
+%% Visualización final interactiva
+
     visualizeResourceGridsOverlay(resourceGrids, ssbTimes, rx.CenterFrequency, ssbRects, ssbTexts);
+
 end
 
+
+%% Funciones auxiliares
+
+% La función findSSB detecta la ráfaga SSB más fuerte en una señal recibida (waveform).
+% Realiza corrección de frecuencia, estimación de Timing, demodulación OFDM,
+% análisis de secuencias SSS y DM-RS para identificar y marcar la ráfaga.
+% Devuelve un booleano indicando si se detectó correcto, el grid de recursos,
+% el rectángulo de detección, el texto para visualización y el ID de celda estimado.
 
 function [detectedSSB, gridSSB, rectSSB, burstText, ncellid] = findSSB(waveform,centerFrequency,scs,sampleRate)
     ssbBlockPattern = hSynchronizationRasterInfo.getBlockPattern(scs,centerFrequency);
@@ -119,6 +144,11 @@ function [detectedSSB, gridSSB, rectSSB, burstText, ncellid] = findSSB(waveform,
     rectSSB = [startSymbol+0.5 ssbFreqOrigin-0.5 numSymbolsSSB 12*nrbSSB];
 end
 
+% La función visualizeResourceGridsOverlay genera una figura interactiva para visualizar la evolución
+% del resource grid a lo largo de múltiples capturas. Incluye un slider que
+% permite navegar por los distintos instantes y muestra un rectángulo y texto
+% que marcan la posición del burst SSB más fuerte correspondiente a cada momento.
+
 function visualizeResourceGridsOverlay(resourceGrids, ssbTimes, freqCenter, ssbRects, ssbTexts)
     numCaptures = numel(resourceGrids);
     fixedRows = size(resourceGrids{1},1);
@@ -163,6 +193,11 @@ function visualizeResourceGridsOverlay(resourceGrids, ssbTimes, freqCenter, ssbR
         updateGrid(idx);
     end
 end
+
+
+% La función estimate SNR calcula y devuelve la estimación del Signal-to-Noise Ratio (SNR) en dB
+% para la señal recibida, usando la mediana para estimar el ruido y la media
+% para la señal, proporcionando una medida de la calidad de la señal recibida.
 
 function SNRdB = estimateSNR(signal)
     noiseEst = median(abs(signal)).^2;
