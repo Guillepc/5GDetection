@@ -132,7 +132,7 @@ function visualizeResourceGridsOverlay(resourceGrids, ssbTimes, freqCenter)
       drawnow;
   end
 
-  function keyPressCallback(~, event)
+  function keyPressCallback(~, event) %
       idx = round(hSlider.Value);
       switch event.Key
           case 'rightarrow'
