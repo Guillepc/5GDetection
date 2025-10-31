@@ -7,7 +7,7 @@ function [waveformsAll, resourceGrids, ssbTimes, powerVec, snrVec, cellIDVec] = 
   rx.ChannelMapping = antennaOptions(1);
   rx.Gain = 50;
   
-  band = "n78";
+  band = "n78"; % frecuencias:
   GSCN = 8003;
   rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN); % 
   scs = "30kHz";
