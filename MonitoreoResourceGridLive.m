@@ -1,50 +1,61 @@
 function MonitoreoVivoResourceGrid
-    % Configuración inicial y parámetros de SDR/banda
-    clear; clc;
-    radioOptions = hSDRBase.getDeviceNameOptions;
-    rx = hSDRReceiver(radioOptions{10});
-    antennaOptions = getAntennaOptions(rx);
-    rx.ChannelMapping = antennaOptions(1);
-    rx.Gain = 50;
-    band = "n78";
-    GSCN = 7929;
-    rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN);
-    scs = "30kHz";
-    nrbSSB = 30;
-    scsNumeric = double(extract(scs,digitsPattern));
-    ofdmInfo = nrOFDMInfo(nrbSSB, scsNumeric);
-    rx.SampleRate = ofdmInfo.SampleRate;
+ %% Configuración inicial y parámetros del receptor SDR y banda 5G
+
+    clear; clc; % Limpia el espacio de trabajo y la ventana de comandos para empezar fresco.
+    radioOptions = hSDRBase.getDeviceNameOptions; % Obtiene una lista de dispositivos SDR disponibles en el sistema.
+    rx = hSDRReceiver(radioOptions{10}); % Crea un objeto receptor SDR usando el dispositivo listado en la posición 10 (B210).
+    antennaOptions = getAntennaOptions(rx); % Obtiene las opciones de antena del receptor
+    rx.ChannelMapping = antennaOptions(1); % Configura el receptor para usar la primera opción de antena disponible: 1 (RFA-RX2) y 2 (RFB-RX2)
+    rx.Gain = 50; % Configura la ganancia del receptor
+    band = "n78"; % Banda entre 3300-3800 MHz
+    GSCN = 8003; % Índice que referencia  una frecuencia particular dentro del rango 5G NR para esa banda:7929(5G-Laboratorio), 8003/7880(5G-Calle)
+    rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN); % Convierte GSCN a frecuencia central y la asigna al receptor SDR.
+    scs = "30kHz"; % Define el subcarrier spacing
+    nrbSSB = 30; % Número de Resource Blocks
+    scsNumeric = double(extract(scs,digitsPattern)); % Extrae el valor numérico 30 de la cadena "30kHz"
+    ofdmInfo = nrOFDMInfo(nrbSSB, scsNumeric); % Obtiene información OFDM
+    rx.SampleRate = ofdmInfo.SampleRate; % Configura la tasa de muestreo del receptor con el valor calculado para OFDM.
     
-    % Parámetros de captura y visualización
-    captureDuration = seconds(0.03);  % Duración de cada captura (~3 frames de 10ms cada uno)
-    pauseInterval = 0.1;              % Pausa entre iteraciones en segundos
-    monitoreoTiempo = 600*2;           % Duración total monitorización en segundos (e.g. 20 min)
+ %% Parámetros de captura y visualización
+    interval = 0.145;  % Intervalo entre capturas
+    framesPerCapture = 3; % Número de frames por captura. Cada frame corresponde a una duración en tiempo estándar de un frame 5G NR (generalmente 10 ms por frame).
+    captureDuration = seconds((framesPerCapture+1)*10e-3); % Tiempo total de la duración de cada captura calculado en segundos.Se multiplica framesPerCapture + 1 para asegurarse de que queda un poco más tiempo para capturar toda la ráfaga.  % Duración de cada captura (~3 frames de 10ms cada uno)
+    pauseInterval = 0.00;              % Pausa entre iteraciones en segundos
+    monitoreoTiempo = 600*2;          % Duración total monitorización en segundos (e.g. 20 min)
+    %numCaptures = floor(monitorTime/interval); % Número de capturas
+    %REDEFINIR CAPTURE CON EL NUMCAPTURES NO CON CAPTURE DURATION
     
-    % Inicializar la figura para mostrar el resource grid
-    hFig = figure('Name','Monitoreo Vivo Resource Grid 5G','NumberTitle','off');
+ %% Inicializar la figura para mostrar el resource grid    
+ 
+    hFig = figure('Name','Monitoreo Vivo Resource Grid 5G','NumberTitle','off'); % Crea una ventana de figura con título personalizado y sin mostrar número de figura.
     hImg = imagesc(zeros(360,56)); % Ajustar tamaño según configuración (filas=subcarriers, cols=símbolos OFDM)
-    axis xy; colormap('jet'); colorbar;
-    xlabel('Símbolos OFDM'); ylabel('Subcarriers');
+    axis xy; colormap('jet'); colorbar; % Configura el eje para que el origen esté en la esquina inferior izquierda
+    xlabel('Símbolos OFDM'); ylabel('Subcarriers'); % Aplica la paleta de colores 'jet'
     title('Resource Grid en vivo 5G');
-    hold on;
+    hold on; % Prepara la figura para posibles posteriores gráficas sin borrar la actual 
     hold off;
     
-    % Iniciar temporizador
-    tic;
+ %% Iniciar temporizador
     
-    while ishandle(hFig) && toc < monitoreoTiempo
+    tic; % Inicia un contador para medir el tiempo de ejecución del monitoreo.
+
+    
+ %% Bucle principal de captura y visualización en vivo
+    
+    while ishandle(hFig) && toc < monitoreoTiempo  % El bucle se ejecuta mientras la figura está abierta y el tiempo transcurrido sea menor que el total de monitoreo.
+
         try
-            waveform = capture(rx, captureDuration);
+            waveform = capture(rx, captureDuration);  % Captura una señal del receptor SDR durante la duración definida.
             % Procesar la señal con función findSSB adaptada
             [detectedSSB, gridSSB, burstRect, burstText, ncellid] = findSSBrobusto(waveform,...
-                rx.CenterFrequency, scs, rx.SampleRate);
+            rx.CenterFrequency, scs, rx.SampleRate);
             
             % Solo actualizar si grid válido y detectado
-            if detectedSSB && ~isempty(gridSSB)
+            if detectedSSB && ~isempty(gridSSB) % Actualiza la imagen con el resource grid detectado
                 set(hImg, 'CData', abs(gridSSB));
                 
           
-                title(sprintf('Resource Grid t=%.2fs | CellID=%d', toc, ncellid));
+                title(sprintf('Resource Grid t=%.2fs | CellID=%d', toc, ncellid)); % Actualiza el título con tiempo transcurrido y Cell ID detectado
                 drawnow;
             else
                 % Opcional: mostrar mensaje si no se detecta SSB
@@ -52,17 +63,20 @@ function MonitoreoVivoResourceGrid
                 drawnow;
             end
         catch ME
-            warning('Error en procesamiento: %s', ME.message);
+            warning('Error en procesamiento: %s', ME.message); % Muestra advertencia si ocurre algún error en esta iteración.
             % Continuar sin detener la captura
         end
         pause(pauseInterval); % Controla la tasa de actualización
     end
     
-    % Limpieza final
+ %% Finalizar monitoreo y liberar recursos
+
     if ishandle(hFig), close(hFig); end
     release(rx);
     fprintf('Monitoreo finalizado.\n');
 end
+
+% Función robusta para encontrar y procesar SSB en la señal capturada
 
 function [detectedSSB, gridSSB, rectSSB, burstText, ncellid] = findSSBrobusto(waveform, centerFrequency, scs, sampleRate)
     % Parámetros de ayuda

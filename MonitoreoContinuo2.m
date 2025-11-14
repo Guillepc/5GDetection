@@ -5,24 +5,24 @@ function [waveformsAll, resourceGrids, ssbTimes, powerVec, snrVec, cellIDVec] = 
     radioOptions = hSDRBase.getDeviceNameOptions; % Obtiene las opciones de dispositivos SDR disponibles en el sistema
     rx = hSDRReceiver(radioOptions{10}); % Crea un objeto receptor SDR usando una de las opciones disponibles, en este caso la opción 10 es B210
     antennaOptions = getAntennaOptions(rx); % Obtiene las opciones de antena para el dispositivo SDR seleccionado
-    rx.ChannelMapping = antennaOptions(1); % Establece la antena seleccionada
+    rx.ChannelMapping = antennaOptions(1); % Establece la antena seleccionada : 1 (RFA:RX2) o 2 (RFB:RX2)
     rx.Gain = 50; % Ajusta la ganancia del receptor SDR
     % Info de bandas de frecuencia : 
     %fr1BandInfo = hSynchronizationRasterInfo.FR1DLOperatingBand ; 
     band = "n78"; % Banda entre 3300-3800 MHz
-    GSCN = 7929; % Índice que referencia una frecuencia particular dentro del rango 5G NR para esa banda
+    GSCN = 8003; % Índice que referencia una frecuencia particular dentro del rango 5G NR para esa banda
     rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN); % Frecuencia central del SDR usando el GSCN 
     scs = "30kHz"; % Espaciado de subportadora
-    nrbSSB = 20; % Define el número de resource blocks (RBs) ocupados en la SSB 
+    nrbSSB = 30; % Define el número de resource blocks (RBs) ocupados en la SSB 
     scsNumeric = double(extract(scs, digitsPattern)); % % Extrae el valor numérico del espaciado de subportadora
     ofdmInfo = nrOFDMInfo(nrbSSB, scsNumeric); % Calcula información OFDM (incluyendo tasa de muestreo, duración de símbolo, etc)
     rx.SampleRate = ofdmInfo.SampleRate; % Configura la tasa de muestreo del SDR para que coincida con la requerida por OFDM
    
     %% Parámetros de captura
 
-    monitorTime = 1; % Tiempo en el que se va a capturar señales
-    interval = 0.1;  % Intervalo entre capturas 
-    framesPerCapture = 2; % Número de frames por captura. Cada frame corresponde a una duración en tiempo estándar de un frame 5G NR (generalmente 10 ms por frame).
+    monitorTime = 4; % Tiempo en el que se va a capturar señales
+    interval = 0.145;  % Intervalo entre capturas 
+    framesPerCapture = 3; % Número de frames por captura. Cada frame corresponde a una duración en tiempo estándar de un frame 5G NR (generalmente 10 ms por frame).
     captureDuration = seconds((framesPerCapture+1)*10e-3); % Tiempo total de la duración de cada captura calculado en segundos.Se multiplica framesPerCapture + 1 para asegurarse de que queda un poco más tiempo para capturar toda la ráfaga.
     numCaptures = floor(monitorTime/interval); % Número de capturas
 
@@ -134,9 +134,9 @@ function [detectedSSB, gridSSB, rectSSB, burstText, ncellid] = findSSB(waveform,
     burstText = sprintf('Strongest SSB: %d', strongestSSBIdx);
 
     % RECURSO GRID Y RECTÁNGULO ESTILO EJEMPLO
-    demodRB = 30;
+    demodRB = 25;
     gridSSB = nrOFDMDemodulate(correctedWaveform,demodRB,scsNumeric,nSlot,SampleRate=sampleRate);
-    last = min(56,size(gridSSB,2));
+    last = min(140,size(gridSSB,2));
     gridSSB = gridSSB(:,1:last,1);
     ssbFreqOrigin = 12*(demodRB-nrbSSB)/2 + 1;
     startSymbol = 1;
