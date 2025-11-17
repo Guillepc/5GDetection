@@ -21,7 +21,7 @@ function [waveformsAll, resourceGrids, ssbTimes, powerVec, snrVec, cellIDVec] = 
     %% Parámetros de captura
 
     monitorTime = 4; % Tiempo en el que se va a capturar señales
-    interval = 0.145;  % Intervalo entre capturas 
+    interval = 0.16;  % Intervalo entre capturas 
     framesPerCapture = 3; % Número de frames por captura. Cada frame corresponde a una duración en tiempo estándar de un frame 5G NR (generalmente 10 ms por frame).
     captureDuration = seconds((framesPerCapture+1)*10e-3); % Tiempo total de la duración de cada captura calculado en segundos.Se multiplica framesPerCapture + 1 para asegurarse de que queda un poco más tiempo para capturar toda la ráfaga.
     numCaptures = floor(monitorTime/interval); % Número de capturas
