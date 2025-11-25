@@ -20,7 +20,7 @@ function MonitoreoVivoResourceGridAdaptadoNumCaptures
     framesPerCapture = 3; % Número de frames por captura. Cada frame corresponde a una duración en tiempo estándar de un frame 5G NR (generalmente 10 ms por frame).
     captureDuration = seconds((framesPerCapture + 1) * 10e-3); % Tiempo total de la duración de cada captura calculado en segundos.Se multiplica framesPerCapture + 1 para asegurarse de que queda un poco más tiempo para capturar toda la ráfaga.
     pauseInterval = 0.00;  % Pausa entre iteraciones
-    monitoreoTiempo = 1001 * 2;  % Original tiempo total de monitoreo en segundos aunque con esto se calcula el número de capturas y el tiempo va en funcion a esa variable 
+    monitoreoTiempo = 1001 * 1;  % Original tiempo total de monitoreo en segundos aunque con esto se calcula el número de capturas y el tiempo va en funcion a esa variable 
     numCaptures = floor(monitoreoTiempo / interval); % Número de capturas 
 
     %% Inicializar la figura para mostrar el resource grid
