@@ -10,22 +10,22 @@ function MonitoreoVivoResourceGridAdaptadoNumCaptures
     GSCN = 7929; % Índice que referencia una frecuencia particular dentro del rango 5G NR para esa banda. 7929 es 5G-laboratorio y 8003 es 5G-calle
     rx.CenterFrequency = hSynchronizationRasterInfo.gscn2frequency(GSCN); % Frecuencia central del SDR usando el GSCN 
     scs = "30kHz"; % Espaciado de subportadora
-    %nrbSSB = 30;  % Define el número de resource blocks (RBs) ocupados en la SSB 
-    %scsNumeric = double(extract(scs, digitsPattern)); % % Extrae el valor numérico del espaciado de subportadora
-    %ofdmInfo = nrOFDMInfo(nrbSSB, scsNumeric); % Calcula información OFDM (incluyendo tasa de muestreo, duración de símbolo, etc)
-    rx.SampleRate = 19500000; % Configura la tasa de muestreo del SDR para que coincida con la requerida por OFDM
+    nrbSSB = 30;  % Define el número de resource blocks (RBs) ocupados en la SSB 
+    scsNumeric = double(extract(scs, digitsPattern)); % % Extrae el valor numérico del espaciado de subportadora
+    ofdmInfo = nrOFDMInfo(nrbSSB, scsNumeric); % Calcula información OFDM (incluyendo tasa de muestreo, duración de símbolo, etc)
+    rx.SampleRate = ofdmInfo.SampleRate; % Configura la tasa de muestreo del SDR para que coincida con la requerida por OFDM
     
     %% Parámetros de captura y visualización
-    interval = 0.15;  % Intervalo entre capturas [s]
+    interval = 0.3;  % Intervalo entre capturas [s]
     framesPerCapture = 3; % Número de frames por captura. Cada frame corresponde a una duración en tiempo estándar de un frame 5G NR (generalmente 10 ms por frame).
     captureDuration = seconds((framesPerCapture + 1) * 10e-3); % Tiempo total de la duración de cada captura calculado en segundos.Se multiplica framesPerCapture + 1 para asegurarse de que queda un poco más tiempo para capturar toda la ráfaga.
     pauseInterval = 0.00;  % Pausa entre iteraciones
-    monitoreoTiempo = 1001 * 1;  % Original tiempo total de monitoreo en segundos aunque con esto se calcula el número de capturas y el tiempo va en funcion a esa variable 
+    monitoreoTiempo = 1001 * 100;  % Original tiempo total de monitoreo en segundos aunque con esto se calcula el número de capturas y el tiempo va en funcion a esa variable 
     numCaptures = floor(monitoreoTiempo / interval); % Número de capturas 
 
     %% Inicializar la figura para mostrar el resource grid
     hFig = figure('Name', 'Monitoreo Vivo Resource Grid 5G Adaptado NumCaptures', 'NumberTitle', 'off');
-    hImg = imagesc(zeros(540, 20)); 
+    hImg = imagesc(zeros(360, 56)); 
     axis xy; colormap('jet'); colorbar;
     xlabel('Símbolos OFDM'); ylabel('Subcarriers');
     title('Resource Grid en vivo 5G');
@@ -144,9 +144,9 @@ function [detectedSSB, gridSSB, rectSSB, burstText, ncellid] = findSSBrobusto(wa
         burstText = sprintf('Strongest SSB: %d', strongestSSBIdx);
         
         % Construir el resource grid para despliegue
-        demodRB = 45;
+        demodRB = 30;
         gridSSB = nrOFDMDemodulate(correctedWaveform, demodRB, scsNumeric, nSlot, SampleRate=sampleRate);
-        last = min(20, size(gridSSB, 2));
+        last = min(56, size(gridSSB, 2));
         gridSSB = gridSSB(:, 1:last, 1);
         
         ssbFreqOrigin = 12*(demodRB-nrbSSB)/2 + 1;
